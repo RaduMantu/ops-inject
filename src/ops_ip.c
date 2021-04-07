@@ -1,0 +1,162 @@
+#include <sys/time.h>       /* gettimeofday    */
+#include <arpa/inet.h>      /* htonl           */
+
+#include "util.h"           /* DIE, ABORT, RET */
+#include "ops_ip.h"
+
+/* decode_eool - EOOL decoding callback
+ *  @dst_buffer : buffer where ops are constructed before they are injected
+ *  @len_left   : remaining bytes in dst_buffer
+ *  @usr_ops    : reference to user specified current option
+ *  @iph        : pointer to start of ip header
+ *  @ops_sec    : start of temporary options buffer
+ *
+ *  @return : number of bytes written to dst_buffer or 0 on error
+ *
+ * Function must be called via the decoder callback array while masking the
+ * most significant bit. usr_ops is used to correctly identify the copy bit
+ * after masking but also if an experimental option needs to consume more than
+ * one byte. *usr_ops is incremented according to the number of consumed bytes.
+ * The ip header pointer to the yet UNMODIFIED packet is passed in case some
+ * options need the information. ops_sec is passed in case the caller wishes
+ * to preallocate space for the option but queues it for later computation
+ * (e.g.: checksum of final options section, placed at the very start). Note
+ * that any out-of-order, non-standalone option computation must be handled by
+ * the caller.
+ *
+ * If dst_buffer is NULL, it is to be understood that the user wants to postpone
+ * processing this option but wants to know the amount of space that will be
+ * required. The function will modify *usr_ops and return the length as if the
+ * processing has taken place. It is up to the caller to correctly interpret
+ * this result.
+ *
+ * NOTE: this applies to all other decoders as well, but will be omitted.
+ */
+static size_t decode_eool(uint8_t       *dst_buffer,
+                          size_t        len_left,
+                          uint8_t       **usr_ops,
+                          struct iphdr  *iph,
+                          uint8_t       *ops_sec)
+{
+    /* sanity checks */
+    RET(!usr_ops, 0, "usr_ops is NULL");
+    RET(!iph,     0, "iph is NULL");
+    RET(!ops_sec, 0, "ops_sec is NULL");
+
+    RET(len_left < 1, 0, "Not enough sapace for option");
+
+    /* postponing processing */
+    if (!dst_buffer) {
+        (*usr_ops)++;
+        return 1;
+    } 
+
+    /* actual processing */
+    dst_buffer[0] = ((*usr_ops)++)[0];
+    return 1;
+}
+
+static size_t decode_nop(uint8_t        *dst_buffer,
+                         size_t         len_left,
+                         uint8_t        **usr_ops,
+                         struct iphdr   *iph,
+                         uint8_t        *ops_sec)
+{
+    /* sanity checks */
+    RET(!usr_ops, 0, "usr_ops is NULL");
+    RET(!iph,     0, "iph is NULL");
+    RET(!ops_sec, 0, "ops_sec is NULL");
+
+    RET(len_left < 1, 0, "Not enough sapace for option");
+
+    /* postponing processing */
+    if (!dst_buffer) {
+        (*usr_ops)++;
+        return 1;
+    }
+
+    /* actual processing */
+    dst_buffer[0] = ((*usr_ops)++)[0];
+    return 1; 
+}
+
+static size_t decode_ts(uint8_t         *dst_buffer,
+                        size_t          len_left,
+                        uint8_t         **usr_ops,
+                        struct iphdr    *iph,
+                        uint8_t         *ops_sec)
+{
+    struct timestamp *ts;
+    struct timeval   tv;
+    uint32_t         msec;
+    int              ans;
+
+    /* sanity checks */
+    RET(!usr_ops, 0, "usr_ops is NULL");
+    RET(!iph,     0, "iph is NULL");
+    RET(!ops_sec, 0, "ops_sec is NULL");
+
+    RET(len_left < 12, 0, "Not enough sapace for option");
+
+    /* postponing processing */
+    if (!dst_buffer) {
+        (*usr_ops)++;
+        return 12;
+    }
+
+    /* get time of day for timestamp & convert it to ms since midnight in UT */
+    ans = gettimeofday(&tv, NULL);
+    RET(ans == -1, 0, "Unable to get time of day (%d)", errno);
+
+    msec = (tv.tv_sec % 86400) * 1000 + tv.tv_usec / 1000;
+
+    /* we set only one timestamp w/ associated ip address            *
+     * we use flag 0x3 to prevent middleboxes from adding timestamps */
+    dst_buffer[0] = ((*usr_ops)++)[0];              /* type             */
+    dst_buffer[1] = 12;                             /* length           */
+    dst_buffer[2] = 13;                             /* pointer          */
+    dst_buffer[3] = 0x03;                           /* overflow & flags */
+    *(uint32_t *)(dst_buffer + 4) = iph->saddr;     /* ip address       */
+    *(uint32_t *)(dst_buffer + 8) = htonl(msec);    /* timestamp        */
+
+    return 12;
+}
+
+/* decode_dummy - dummy decoder for unimplemented options
+ *  @return : 0
+ *
+ * Asking for an unimplemented option will cause this to return 0 (error) and
+ * abort the option section generation. Packet should pass unmodified.
+ */
+static size_t decode_dummy(uint8_t      *dst_buffer,
+                           size_t       len_left,
+                           uint8_t      **usr_ops,
+                           struct iphdr *iph,
+                           uint8_t      *ops_sec)
+{
+    return 0;
+}
+
+
+/* individual option decoder callback array */
+size_t (*ip_decoders[0x7f])(uint8_t *, size_t, uint8_t **,
+                            struct iphdr *,  uint8_t *) = {
+    [0x00 ... 0x7e] = decode_dummy,
+
+    [0x00] = decode_eool,   /* End Of Options List */
+    [0x01] = decode_nop,    /* No OPtion           */
+    [0x44] = decode_ts,     /* TimeStamp           */
+};
+
+/* option processing priority                        *
+ * NOTE: smaller value means higher priority         *
+ * NOTE: a value of 0 means immediate processing     *
+ * NOTE: multiple options can have the same priority */
+uint64_t ip_ops_prio[0x7f] = {
+    [0x00 ... 0x7e] = 0,
+
+    [0x00] = 0,             /* End Of Options List */
+    [0x01] = 0,             /* No OPtion           */
+    [0x44] = 0,             /* TimeStamp           */
+};
+
