@@ -32,11 +32,11 @@
  *
  * NOTE: this applies to all other decoders as well, but will be omitted.
  */
-static size_t decode_eool(uint8_t       *dst_buffer,
-                          size_t        len_left,
-                          uint8_t       **usr_ops,
-                          struct iphdr  *iph,
-                          uint8_t       *ops_sec)
+static size_t decode_eool(uint8_t      *dst_buffer,
+                          size_t       len_left,
+                          uint8_t      **usr_ops,
+                          struct iphdr *iph,
+                          uint8_t      *ops_sec)
 {
     /* sanity checks */
     RET(!usr_ops, 0, "usr_ops is NULL");
@@ -56,11 +56,11 @@ static size_t decode_eool(uint8_t       *dst_buffer,
     return 1;
 }
 
-static size_t decode_nop(uint8_t        *dst_buffer,
-                         size_t         len_left,
-                         uint8_t        **usr_ops,
-                         struct iphdr   *iph,
-                         uint8_t        *ops_sec)
+static size_t decode_nop(uint8_t      *dst_buffer,
+                         size_t       len_left,
+                         uint8_t      **usr_ops,
+                         struct iphdr *iph,
+                         uint8_t      *ops_sec)
 {
     /* sanity checks */
     RET(!usr_ops, 0, "usr_ops is NULL");
@@ -80,11 +80,11 @@ static size_t decode_nop(uint8_t        *dst_buffer,
     return 1; 
 }
 
-static size_t decode_ts(uint8_t         *dst_buffer,
-                        size_t          len_left,
-                        uint8_t         **usr_ops,
-                        struct iphdr    *iph,
-                        uint8_t         *ops_sec)
+static size_t decode_ts(uint8_t      *dst_buffer,
+                        size_t       len_left,
+                        uint8_t      **usr_ops,
+                        struct iphdr *iph,
+                        uint8_t      *ops_sec)
 {
     struct timestamp *ts;
     struct timeval   tv;
@@ -122,6 +122,59 @@ static size_t decode_ts(uint8_t         *dst_buffer,
     return 12;
 }
 
+/* this function implements two different options:
+ * 1) unkown option not assigned by IANA at this time
+ *      copy=0, class=2, number=29 --> value=93 (0x5d)
+ * 2) experimental option as defined in RFC4727 and recognized by IANA
+ *      copy=0, class=2, number=30 --> value=94 (0x5e)
+ *
+ * structure:
+ *      [0]    = 93 / 94
+ *      [1]    = length of option (between 2 and 6)
+ *      [2...] = incremental-valued bytes starting with 0
+ *
+ * this option MUST be placed last
+ * fills the space with consecutively-valued bytes until the next 32b boundary
+ * if start of content is already 32b aligned, 4 more bytes are added
+ */
+static size_t decode_unknown(uint8_t      *dst_buffer,
+                             size_t       len_left,
+                             uint8_t      **usr_ops,
+                             struct iphdr *iph,
+                             uint8_t      *ops_sec)
+{
+    uint8_t option_off, option_len;
+
+    /* sanity checks */
+    RET(!usr_ops, 0, "usr_ops is NULL");
+    RET(!iph,     0, "iph is NULL");
+    RET(!ops_sec, 0, "ops_sec is NULL");
+
+    RET(len_left < 2, 0, "Not enough sapace for option");
+
+    /* calculate option offset within option section *
+     * if no more space, [2...] can be skipped       */
+    option_off = (uint8_t) ((uint64_t) dst_buffer - (uint64_t) ops_sec);
+    option_len = 4 - option_off % 4;
+
+    if (option_len <= 2 && len_left >= 6)
+        option_len += 4;
+
+    /* postponing processing */
+    if (!dst_buffer) {
+        (*usr_ops)++;
+        return option_len;
+    }
+
+    /* generate option content */
+    *dst_buffer++ = ((*usr_ops)++)[0];
+    *dst_buffer++ = option_len;
+    for (uint8_t i=0; i<option_len-2; ++i)
+        dst_buffer[i] = i;
+
+    return option_len;
+}
+
 /* decode_dummy - dummy decoder for unimplemented options
  *  @return : 0
  *
@@ -143,9 +196,11 @@ size_t (*ip_decoders[0x7f])(uint8_t *, size_t, uint8_t **,
                             struct iphdr *,  uint8_t *) = {
     [0x00 ... 0x7e] = decode_dummy,
 
-    [0x00] = decode_eool,   /* End Of Options List */
-    [0x01] = decode_nop,    /* No OPtion           */
-    [0x44] = decode_ts,     /* TimeStamp           */
+    [0x00] = decode_eool,       /* End Of Options List */
+    [0x01] = decode_nop,        /* No OPtion           */
+    [0x44] = decode_ts,         /* TimeStamp           */
+    [0x5d] = decode_unknown,    /* unasigned option    */
+    [0x5e] = decode_unknown,    /* Experimental Option */
 };
 
 /* option processing priority                        *
@@ -155,8 +210,10 @@ size_t (*ip_decoders[0x7f])(uint8_t *, size_t, uint8_t **,
 uint64_t ip_ops_prio[0x7f] = {
     [0x00 ... 0x7e] = 0,
 
-    [0x00] = 0,             /* End Of Options List */
-    [0x01] = 0,             /* No OPtion           */
-    [0x44] = 0,             /* TimeStamp           */
+    [0x00] = 0,                 /* End Of Options List */
+    [0x01] = 0,                 /* No OPtion           */
+    [0x44] = 0,                 /* TimeStamp           */
+    [0x5d] = 0,                 /* unasigned option    */
+    [0x5e] = 0,                 /* Experimental Option */
 };
 
