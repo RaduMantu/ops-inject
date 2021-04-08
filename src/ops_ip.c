@@ -199,7 +199,7 @@ size_t (*ip_decoders[0x7f])(uint8_t *, size_t, uint8_t **,
     [0x00] = decode_eool,       /* End Of Options List */
     [0x01] = decode_nop,        /* No OPtion           */
     [0x44] = decode_ts,         /* TimeStamp           */
-    [0x5d] = decode_unknown,    /* unasigned option    */
+    [0x5d] = decode_unknown,    /* Unasigned Option    */
     [0x5e] = decode_unknown,    /* Experimental Option */
 };
 
@@ -213,7 +213,7 @@ uint64_t ip_ops_prio[0x7f] = {
     [0x00] = 0,                 /* End Of Options List */
     [0x01] = 0,                 /* No OPtion           */
     [0x44] = 0,                 /* TimeStamp           */
-    [0x5d] = 0,                 /* unasigned option    */
+    [0x5d] = 0,                 /* Unasigned Option    */
     [0x5e] = 0,                 /* Experimental Option */
 };
 
