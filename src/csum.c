@@ -75,12 +75,12 @@ static int tcp_csum(struct iphdr *iph)
     tcp_len = ntohs(iph->tot_len) - iph->ihl * 4;
 
     /* calculate partial pseudo header sum */
-    sum += ((uint16_t *) &iph->saddr)[0];
-    sum += ((uint16_t *) &iph->saddr)[1];
-    sum += ((uint16_t *) &iph->daddr)[0];
-    sum += ((uint16_t *) &iph->daddr)[1];
+    sum += iph->saddr         & 0xffff;
+    sum += (iph->saddr >> 16) & 0xffff;
+    sum += iph->daddr         & 0xffff;
+    sum += (iph->daddr >> 16) & 0xffff;
     sum += htons(tcp_len);
-    sum += iph->protocol << 8;
+    sum += htons(iph->protocol);
 
     /* zero out csum field (as if to skip it) & compute checksum */
     tcph->check = 0;
@@ -112,12 +112,12 @@ static int udp_csum(struct iphdr *iph)
     udp_len = ntohs(udph->len);
 
     /* calculate partial pseudo header sum */
-    sum += ((uint16_t *) &iph->saddr)[0];
-    sum += ((uint16_t *) &iph->saddr)[1];
-    sum += ((uint16_t *) &iph->daddr)[0]; 
-    sum += ((uint16_t *) &iph->daddr)[1];
-    sum += udp_len;
-    sum += iph->protocol << 8;
+    sum += iph->saddr         & 0xffff;
+    sum += (iph->saddr >> 16) & 0xffff;
+    sum += iph->daddr         & 0xffff;
+    sum += (iph->daddr >> 16) & 0xffff;
+    sum += htons(udp_len);
+    sum += htons(iph->protocol);
 
     /* zero out csum field (as if to skip it) & compute checksum */
     udph->check = 0;

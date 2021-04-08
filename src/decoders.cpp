@@ -98,9 +98,8 @@ size_t decode_ip_ops(struct iphdr *iph, void **ops_buffer, uint8_t ow)
         auto [delayed_dst, delayed_len, delayed_op] = pq.top();
         pq.pop();
 
-        /* consider more than enough length left (already checked before) */
-        ans = ip_decoders[*delayed_op & 0x7f](delayed_dst, 0xffff, &delayed_op,
-                iph, ops);
+        ans = ip_decoders[*delayed_op & 0x7f](delayed_dst, len_left - len,
+                &delayed_op, iph, ops);
         RET(!ans, 0, "Unable to decode byte %lu of user ops",
             (unsigned long)(delayed_op - args.ops));
     }
@@ -192,9 +191,8 @@ size_t decode_tcp_ops(struct iphdr *iph, void **ops_buffer, uint8_t ow)
         auto [delayed_dst, delayed_len, delayed_op] = pq.top();
         pq.pop();
 
-        /* consider more than enough length left (already checked before) */
-        ans = tcp_decoders[*delayed_op & 0x7f](delayed_dst, 0xffff, &delayed_op,
-                iph, ops);
+        ans = tcp_decoders[*delayed_op & 0x7f](delayed_dst, len_left - len,
+                &delayed_op, iph, ops);
         RET(!ans, 0, "Unable to decode byte %lu of user ops",
             (unsigned long)(delayed_op - args.ops));
     } 
@@ -286,11 +284,8 @@ size_t decode_udp_ops(struct iphdr *iph, void **ops_buffer, uint8_t ow)
         auto [delayed_dst, delayed_len, delayed_op] = pq.top();
         pq.pop();
 
-        printf(">>> %02hhx\n", *delayed_op);
-
-        /* consider more than enough length left (already checked before) */
-        ans = udp_decoders[*delayed_op & 0x7f](delayed_dst, 0xffff, &delayed_op,
-                iph, ops);
+        ans = udp_decoders[*delayed_op & 0x7f](delayed_dst, len_left - len,
+                &delayed_op, iph, ops);
         RET(!ans, 0, "Unable to decode byte %lu of user ops",
             (unsigned long)(delayed_op - args.ops));
     }

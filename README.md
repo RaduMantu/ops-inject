@@ -9,3 +9,7 @@ $ sudo iptables
 
 $ sudo iptables
     -D OUTPUT 1
+
+$ sudo bash -c "./bin/ops-inject -p udp -q 0 -w <(printf '\xcc')"
+
+NOTE: maybe disable checksum offloading?

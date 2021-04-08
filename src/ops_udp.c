@@ -1,6 +1,7 @@
 #include <sys/time.h>       /* gettimeofday    */
 #include <arpa/inet.h>      /* htonl           */
 
+#include "csum.h"           /* csum_16b1c      */
 #include "util.h"           /* DIE, ABORT, RET */
 #include "ops_udp.h"
 
@@ -117,6 +118,69 @@ static size_t decode_ts(uint8_t         *dst_buffer,
     return 10;
 }
 
+
+/* NOTE: the kind number 0x4c (0xcc & 0x7f) was taken from the paper's
+ *       presentation; in the IETF draft it is unspecified at this point.
+ *       replace it when standardized but use 0xcc until then.
+ */
+static size_t decode_cco(uint8_t      *dst_buffer,
+                         size_t       len_left,
+                         uint8_t      **usr_ops,
+                         struct iphdr *iph,
+                         uint8_t      *ops_sec)
+{
+    struct udphdr *udph;
+    uint16_t      udp_len, udp_ops_len;
+    size_t        init_sum, ret_val;
+
+    /* sanity checks */
+    RET(!usr_ops, 0, "usr_ops is NULL");
+    RET(!iph,     0, "iph is NULL");
+    RET(!ops_sec, 0, "ops_sec is NULL");
+
+    RET(len_left < 4, 0, "Not enough space for option");
+
+    /* this option must be 16b aligned within the packet           *
+     * prepending a NOP may be required                            *
+     * NOTE: at this point, IP.tot_len and UDP.len are NOT updated */
+    udph = (struct udphdr *)((uint8_t *) iph + iph->ihl * 4);
+    udp_len     = ntohs(udph->len);
+    udp_ops_len = 0xffff - len_left - ntohs(iph->tot_len);
+
+    ret_val = 4 + (udp_len + (uint64_t) dst_buffer - (uint64_t) ops_sec & 1);
+
+    /* postponing processing */
+    if (!dst_buffer) {
+        (*usr_ops)++;
+        return ret_val;
+    }
+
+    /* prepend NOP if required                            *
+     * initialize the option type & length                *
+     * initialize checksum filed with 0                   *
+     * initialize the options area checksum pseudo-header */
+    if (ret_val == 5)
+        *dst_buffer++ = 0x01;
+    *dst_buffer++ = ((*usr_ops)++)[0];
+    *dst_buffer++ = 0x04;
+    *(uint16_t *) dst_buffer = 0x0000;
+    init_sum = udp_ops_len;
+
+    /* if the options area start is not 16b aligned */
+    if (udp_len & 1) {
+        init_sum += ops_sec[0];
+        ops_sec++;
+        udp_ops_len--;
+    }
+
+    /* compute the checksum correction                     *
+     * NOTE: function will account for odd number of bytes */
+    *(uint16_t *) dst_buffer = csum_16b1c(init_sum, (uint16_t *)ops_sec,
+                                    udp_ops_len);
+
+    return ret_val;
+}
+
 /* decode_dummy - dummy decoder for unimplemented options
  *  @return : 0
  *
@@ -141,6 +205,7 @@ size_t (*udp_decoders[0x7f])(uint8_t *, size_t, uint8_t **,
     [0x00] = decode_eool,   /* End Of Options List */
     [0x01] = decode_nop,    /* No OPeration        */
     [0x07] = decode_ts,     /* TimeStamp           */
+    [0x4c] = decode_cco,    /* Checksum Correction */
 };
 
 /* option processing priority                        *
@@ -150,8 +215,9 @@ size_t (*udp_decoders[0x7f])(uint8_t *, size_t, uint8_t **,
 uint64_t udp_ops_prio[0x7f] = {
     [0x00 ... 0x7e] = 0,
 
-    [0x00] = 0,             /* End Of Options List */
-    [0x01] = 0,             /* No OPtion           */
-    [0x07] = 0,             /* TimeStamp           */
+    [0x00] =   0,           /* End Of Options List */
+    [0x01] =   0,           /* No OPtion           */
+    [0x07] =   0,           /* TimeStamp           */
+    [0x4c] = 999,
 };
 
