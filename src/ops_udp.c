@@ -181,6 +181,98 @@ static size_t decode_cco(uint8_t      *dst_buffer,
     return ret_val;
 }
 
+/* this function provides an arbitrary implementation of an unassigned UDP
+ * option that is not in use at this time
+ *      kind=125 (0x7d)
+ *
+ * structure:
+ *      [0]  = 125
+ *      [1]  = length of option (between 2 and 8)
+ *      [2-] = incremental-valued bytes starting with 0
+ *
+ * length is affected only by the amount of space available
+ */
+static size_t decode_unknown(uint8_t      *dst_buffer,
+                             size_t       len_left,
+                             uint8_t      **usr_ops,
+                             struct iphdr *iph,
+                             uint8_t      *ops_sec)
+{
+    uint8_t option_len;
+
+    /* sanity checks */
+    RET(!usr_ops, 0, "usr_ops is NULL");
+    RET(!iph,     0, "iph is NULL");
+    RET(!ops_sec, 0, "ops_sec is NULL");
+
+    RET(len_left < 2, 0, "Not enough space for option");
+
+    /* this should not be 8 only under most extreme circumstances */
+    option_len = len_left < 8 ? len_left : 8;
+
+    /* postponing processing */
+    if (!dst_buffer) {
+        (*usr_ops)++;
+        return option_len;
+    }
+
+    /* generate option content */
+    *dst_buffer++ = ((*usr_ops)++)[0];
+    *dst_buffer++ = option_len;
+    for (uint8_t i=0; i<option_len-2; ++i)
+        dst_buffer[i] = i;
+
+    return option_len;
+}
+
+/* this function provides an arbitrary implementation of an experimental option
+ * as described in "Transport Options for UDP" Internet Draft; at this time,
+ * IANA did not yet create a UDP Experimental ID registry
+ *      kind=256 (0xfe), ExID=57005 (0xdead)
+ *
+ * structure:
+ *      [0]   = 254
+ *      [1]   = length of option (between 4 and 8(
+ *      [2-3] = 0xdead in network-standard order
+ *      [4-]  = incremental-valued bytes starting with 0
+ *
+ * length is affected only by the amount of space available
+ */
+static size_t decode_experimental(uint8_t      *dst_buffer,
+                                  size_t       len_left,
+                                  uint8_t      **usr_ops,
+                                  struct iphdr *iph,
+                                  uint8_t      *ops_sec)
+{
+    uint8_t option_len;
+
+    /* sanity checks */
+    RET(!usr_ops, 0, "usr_ops is NULL");
+    RET(!iph,     0, "iph is NULL");
+    RET(!ops_sec, 0, "ops_sec is NULL");
+
+    RET(len_left < 4, 0, "Not enough space for option");
+
+    /* this should not be 8 only under most extreme circumstances */
+    option_len = len_left < 8 ? len_left : 8;
+
+    /* postponing processing */
+    if (!dst_buffer) {
+        (*usr_ops)++;
+        return option_len;
+    }
+
+    /* generate option content */
+    *dst_buffer++ = ((*usr_ops)++)[0];
+    *dst_buffer++ = option_len;
+    *(uint16_t *) dst_buffer = htons(0xdead);
+    dst_buffer += 2;
+    for (uint8_t i=0; i<option_len-4; ++i)
+        dst_buffer[i] = i;
+
+    return option_len;
+}
+
 /* decode_dummy - dummy decoder for unimplemented options
  *  @return : 0
  *
@@ -202,10 +294,12 @@ size_t (*udp_decoders[0xff])(uint8_t *, size_t, uint8_t **,
                              struct iphdr *, uint8_t *) = {
     [0x00 ... 0xfe] = decode_dummy,
 
-    [0x00] = decode_eool,   /* End Of Options List */
-    [0x01] = decode_nop,    /* No OPeration        */
-    [0x07] = decode_ts,     /* TimeStamp           */
-    [0x4c] = decode_cco,    /* Checksum Correction */
+    [0x00] = decode_eool,           /* End Of Options List */
+    [0x01] = decode_nop,            /* No OPeration        */
+    [0x07] = decode_ts,             /* TimeStamp           */
+    [0x4c] = decode_cco,            /* Checksum Correction */
+    [0x7d] = decode_unknown,        /* Unassigned Option   */
+    [0xfe] = decode_experimental,   /* Experimental Option */
 };
 
 /* option processing priority                        *
@@ -215,9 +309,11 @@ size_t (*udp_decoders[0xff])(uint8_t *, size_t, uint8_t **,
 uint64_t udp_ops_prio[0xff] = {
     [0x00 ... 0xfe] = 0,
 
-    [0x00] =   0,           /* End Of Options List */
-    [0x01] =   0,           /* No OPtion           */
-    [0x07] =   0,           /* TimeStamp           */
-    [0x4c] = 999,           /* Checksum Correction */
+    [0x00] =   0,                   /* End Of Options List */
+    [0x01] =   0,                   /* No OPtion           */
+    [0x07] =   0,                   /* TimeStamp           */
+    [0x4c] = 999,                   /* Checksum Correction */
+    [0x7d] =   0,                   /* Unassigned Option   */
+    [0xfe] =   0,                   /* Experimental Option */
 };
 
