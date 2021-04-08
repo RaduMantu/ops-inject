@@ -143,8 +143,8 @@ size_t decode_tcp_ops(struct iphdr *iph, void **ops_buffer, uint8_t ow)
     /* priority queue holding delayed option processing requests */
     auto compare = [](pp_data lhs, pp_data rhs)
     {
-        return tcp_ops_prio[*get<2>(lhs) & 0x7f] >
-               tcp_ops_prio[*get<2>(rhs) & 0x7f];
+        return tcp_ops_prio[*get<2>(lhs)] >
+               tcp_ops_prio[*get<2>(rhs)];
     };
     priority_queue<pp_data, vector<pp_data>, decltype(compare)> pq(compare);
 
@@ -165,8 +165,8 @@ size_t decode_tcp_ops(struct iphdr *iph, void **ops_buffer, uint8_t ow)
     /* perform decoding */
     for (uint8_t *it = args.ops; it < args.ops + args.ops_len; len += ans) {
         /* immediate processing */
-        if (!tcp_ops_prio[*it & 0x7f]) {
-            ans = tcp_decoders[*it & 0x7f](ops + len, len_left - len, &it,
+        if (!tcp_ops_prio[*it]) {
+            ans = tcp_decoders[*it](ops + len, len_left - len, &it,
                     iph, ops);
             RET(!ans, 0, "Unable to decode byte %lu of user ops",
                 (unsigned long)(it - args.ops));
@@ -177,7 +177,7 @@ size_t decode_tcp_ops(struct iphdr *iph, void **ops_buffer, uint8_t ow)
             aux = it;
 
             /* request space estimate */
-            ans = tcp_decoders[*it & 0x7f](NULL, len_left - len, &it, iph, ops);
+            ans = tcp_decoders[*it](NULL, len_left - len, &it, iph, ops);
             RET(!ans, 0, "Unable to decode byte %lu of user ops",
                 (unsigned long)(it - args.ops));
 
@@ -191,7 +191,7 @@ size_t decode_tcp_ops(struct iphdr *iph, void **ops_buffer, uint8_t ow)
         auto [delayed_dst, delayed_len, delayed_op] = pq.top();
         pq.pop();
 
-        ans = tcp_decoders[*delayed_op & 0x7f](delayed_dst, len_left - len,
+        ans = tcp_decoders[*delayed_op](delayed_dst, len_left - len,
                 &delayed_op, iph, ops);
         RET(!ans, 0, "Unable to decode byte %lu of user ops",
             (unsigned long)(delayed_op - args.ops));
@@ -235,8 +235,8 @@ size_t decode_udp_ops(struct iphdr *iph, void **ops_buffer, uint8_t ow)
     /* priority queue holding delayed option processing requests */
     auto compare = [](pp_data lhs, pp_data rhs)
     {
-        return udp_ops_prio[*get<2>(lhs) & 0x7f] > 
-               udp_ops_prio[*get<2>(rhs) & 0x7f];
+        return udp_ops_prio[*get<2>(lhs)] > 
+               udp_ops_prio[*get<2>(rhs)];
     };
     priority_queue<pp_data, vector<pp_data>, decltype(compare)> pq(compare);
 
@@ -258,8 +258,8 @@ size_t decode_udp_ops(struct iphdr *iph, void **ops_buffer, uint8_t ow)
     /* perform decoding */
     for (uint8_t *it = args.ops; it < args.ops + args.ops_len; len += ans) {
         /* immediate processing */
-        if (!udp_ops_prio[*it & 0x7f]){
-            ans = udp_decoders[*it & 0x7f](ops + len, len_left - len, &it,
+        if (!udp_ops_prio[*it]){
+            ans = udp_decoders[*it](ops + len, len_left - len, &it,
                     iph, ops);
             RET(!ans, 0, "Unable to decode byte %lu of user ops",
                 (unsigned long)(it - args.ops));
@@ -270,7 +270,7 @@ size_t decode_udp_ops(struct iphdr *iph, void **ops_buffer, uint8_t ow)
             aux = it;
 
             /* request space estimation */
-            ans = udp_decoders[*it & 0x7f](NULL, len_left - len, &it, iph, ops);
+            ans = udp_decoders[*it](NULL, len_left - len, &it, iph, ops);
             RET(!ans, 0, "Unable to decode byte %lu of user ops",
                 (unsigned long)(it - args.ops));
 
@@ -284,7 +284,7 @@ size_t decode_udp_ops(struct iphdr *iph, void **ops_buffer, uint8_t ow)
         auto [delayed_dst, delayed_len, delayed_op] = pq.top();
         pq.pop();
 
-        ans = udp_decoders[*delayed_op & 0x7f](delayed_dst, len_left - len,
+        ans = udp_decoders[*delayed_op](delayed_dst, len_left - len,
                 &delayed_op, iph, ops);
         RET(!ans, 0, "Unable to decode byte %lu of user ops",
             (unsigned long)(delayed_op - args.ops));

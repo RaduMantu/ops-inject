@@ -8,11 +8,11 @@
 
 /* individual option decoder callback array *
  * NOTE: apply 0x7f mask when calling       */
-extern size_t (*tcp_decoders[0x7f])(uint8_t *, size_t, uint8_t **,
+extern size_t (*tcp_decoders[0xff])(uint8_t *, size_t, uint8_t **,
     struct iphdr *, uint8_t *);
 
 /* option processing priority */
-extern uint64_t tcp_ops_prio[0x7f];
+extern uint64_t tcp_ops_prio[0xff];
 
 #endif
 

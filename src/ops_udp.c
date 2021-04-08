@@ -198,9 +198,9 @@ static size_t decode_dummy(uint8_t      *dst_buffer,
 
 
 /* individual option decoder callback array */
-size_t (*udp_decoders[0x7f])(uint8_t *, size_t, uint8_t **,
+size_t (*udp_decoders[0xff])(uint8_t *, size_t, uint8_t **,
                              struct iphdr *, uint8_t *) = {
-    [0x00 ... 0x7e] = decode_dummy,
+    [0x00 ... 0xfe] = decode_dummy,
 
     [0x00] = decode_eool,   /* End Of Options List */
     [0x01] = decode_nop,    /* No OPeration        */
@@ -212,12 +212,12 @@ size_t (*udp_decoders[0x7f])(uint8_t *, size_t, uint8_t **,
  * NOTE: samller value means higher priority         *
  * NOTE: a value of 0 means immediate processing     *
  * NOTE: multiple options can have the same priority */
-uint64_t udp_ops_prio[0x7f] = {
-    [0x00 ... 0x7e] = 0,
+uint64_t udp_ops_prio[0xff] = {
+    [0x00 ... 0xfe] = 0,
 
     [0x00] =   0,           /* End Of Options List */
     [0x01] =   0,           /* No OPtion           */
     [0x07] =   0,           /* TimeStamp           */
-    [0x4c] = 999,
+    [0x4c] = 999,           /* Checksum Correction */
 };
 

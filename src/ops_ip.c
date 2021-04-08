@@ -129,11 +129,11 @@ static size_t decode_ts(uint8_t      *dst_buffer,
  *      copy=0, class=2, number=30 --> value=94 (0x5e)
  *
  * structure:
- *      [0]    = 93 / 94
- *      [1]    = length of option (between 2 and 6)
- *      [2...] = incremental-valued bytes starting with 0
+ *      [0]  = 93 / 94
+ *      [1]  = length of option (between 2 and 6)
+ *      [2-] = incremental-valued bytes starting with 0
  *
- * this option MUST be placed last
+ * this option SHOULD be placed last
  * fills the space with consecutively-valued bytes until the next 32b boundary
  * if start of content is already 32b aligned, 4 more bytes are added
  */
@@ -153,7 +153,7 @@ static size_t decode_unknown(uint8_t      *dst_buffer,
     RET(len_left < 2, 0, "Not enough sapace for option");
 
     /* calculate option offset within option section *
-     * if no more space, [2...] can be skipped       */
+     * if no more space, [2-] can be skipped         */
     option_off = (uint8_t) ((uint64_t) dst_buffer - (uint64_t) ops_sec);
     option_len = 4 - option_off % 4;
 

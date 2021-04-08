@@ -123,6 +123,110 @@ static size_t decode_ts(uint8_t         *dst_buffer,
     return 10;
 }
 
+/* this function provides an arbitrary implementation of a IANA reserved TCP
+ * option that is not in use at this time
+ *      kind=71 (0x47)
+ *
+ * structure:
+ *      [0]  = 71
+ *      [1]  = length of option (between 2 and 6)
+ *      [2-] = incremental-valued bytes starting with 0
+ *
+ * fills the space with consecutively-valued bytes until the next 32b boundary
+ * if start of content is already 32b aligned, 4 more bytes are added
+ */
+static size_t decode_reserved(uint8_t      *dst_buffer,
+                              size_t       len_left,
+                              uint8_t      **usr_ops,
+                              struct iphdr *iph,
+                              uint8_t      *ops_sec)
+{
+    uint8_t option_off, option_len;
+
+    /* sanity checks */
+    RET(!usr_ops, 0, "usr_ops is NULL");
+    RET(!iph,     0, "iph is NULL");
+    RET(!ops_sec, 0, "ops_sec is NULL");
+
+    RET(len_left < 2, 0, "Not enough space for option");
+
+    /* calculate option offset within option section *
+     * if no more space, [2-] can be skipped         */
+    option_off = (uint8_t) ((uint64_t) dst_buffer - (uint64_t) ops_sec);
+    option_len = 4 - option_off % 4;
+
+    if (option_len <= 2 && len_left >= 6)
+        option_len += 4;
+
+    /* postponing processing */
+    if (!dst_buffer) {
+        (*usr_ops)++;
+        return option_len;
+    }
+
+    /* generate option content */
+    *dst_buffer++ = ((*usr_ops)++)[0];
+    *dst_buffer++ = option_len;
+    for (uint8_t i=0; i<option_len-2; ++i)
+        dst_buffer[i] = i;
+
+    return option_len;
+}
+
+/* this function provides an arbitrary implementation of a IANA assigned
+ * experimental option and conforming to RFC 6994 for assuring shared use of
+ * the codepoint
+ *      kind=254 (0xfe), ExID=57005 (0xdead)
+ *
+ * structure:
+ *      [0]   = 254
+ *      [1]   = length of option (between 4 and 8)
+ *      [2-3] = 0xdead in network-standard order
+ *      [4-]  = incremental-valued bytes starting with 0
+ *
+ * fills the space with consecutively-valued bytes until the next 32b boundary
+ * if start of content is already 32b aligned, 4 more bytes are added
+ */
+static size_t decode_experimental(uint8_t      *dst_buffer,
+                                  size_t       len_left,
+                                  uint8_t      **usr_ops,
+                                  struct iphdr *iph,
+                                  uint8_t      *ops_sec)
+{
+    uint8_t option_off, option_len;
+
+    /* sanity checks */
+    RET(!usr_ops, 0, "usr_ops is NULL");
+    RET(!iph,     0, "iph is NULL");
+    RET(!ops_sec, 0, "ops_sec is NULL");
+
+    RET(len_left < 4, 0, "Not enough space for option");
+
+    /* calculate option offset within option section *
+     * if no more space, [4-] can be skipped         */
+    option_off = (uint8_t) ((uint64_t) dst_buffer - (uint64_t) ops_sec);
+    option_len = 8 - option_off % 4;
+
+    if (len_left < option_len)
+        option_len = len_left;
+
+    /* postponing processing */
+    if (!dst_buffer) {
+        (*usr_ops)++;
+        return option_len;
+    }
+
+    /* generate option content */
+    *dst_buffer++ = ((*usr_ops)++)[0];
+    *dst_buffer++ = option_len;
+    *(uint16_t *) dst_buffer = htons(0xdead);
+    dst_buffer += 2;
+    for (uint8_t i=0; i<option_len-4; ++i)
+        dst_buffer[i] = i;
+
+    return option_len;
+}
+
 /* decode_dummy - dummy decoder for unimplemented options
  *  @return : 0
  *
@@ -140,24 +244,28 @@ static size_t decode_dummy(uint8_t      *dst_buffer,
 
 
 /* individual option decoder callback array */
-size_t (*tcp_decoders[0x7f])(uint8_t *, size_t, uint8_t **,
+size_t (*tcp_decoders[0xff])(uint8_t *, size_t, uint8_t **,
                              struct iphdr *, uint8_t *) = {
-    [0x00 ... 0x7e] = decode_dummy,
+    [0x00 ... 0xfe] = decode_dummy,
 
-    [0x00] = decode_eool,   /* End Of Options List */
-    [0x01] = decode_nop,    /* No OPtion           */
-    [0x08] = decode_ts,     /* TimeStamp           */
+    [0x00] = decode_eool,           /* End Of Options List */
+    [0x01] = decode_nop,            /* No OPtion           */
+    [0x08] = decode_ts,             /* TimeStamp           */
+    [0x47] = decode_reserved,       /* Reserved Option     */
+    [0xfe] = decode_experimental,   /* Experimental Option */
 };
 
 /* option processing priority                         *
  *  NOTE: smaller value means higher priority         *
  *  NOTE: a value of 0 means immediate processing     *
  *  NOTE: multiple options can have the same priority */
-uint64_t tcp_ops_prio[0x7f] = {
-    [0x00 ... 0x7e] = 0,
+uint64_t tcp_ops_prio[0xff] = {
+    [0x00 ... 0xfe] = 0,
 
-    [0x00] = 0,             /* End Of Options List */
-    [0x01] = 0,             /* No OPtion           */
-    [0x08] = 0,             /* TimeStamp           */
+    [0x00] = 0,                     /* End Of Options List */
+    [0x01] = 0,                     /* No OPtion           */
+    [0x08] = 0,                     /* TimeStamp           */
+    [0x47] = 0,                     /* Reserved Option     */
+    [0xfe] = 0,                     /* Experimental Option */
 };
 
