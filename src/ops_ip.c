@@ -1,8 +1,13 @@
 #include <sys/time.h>       /* gettimeofday    */
 #include <arpa/inet.h>      /* htonl           */
+#include <string.h>         /* memset          */
 
 #include "util.h"           /* DIE, ABORT, RET */
 #include "ops_ip.h"
+
+
+#define _TRACEROUTE_MODE    /* see decode_ts */
+
 
 /* decode_eool - EOOL decoding callback
  *  @dst_buffer : buffer where ops are constructed before they are injected
@@ -80,6 +85,16 @@ static size_t decode_nop(uint8_t      *dst_buffer,
     return 1; 
 }
 
+/* the initial way this was supposed to work was by adding the generating
+ * host's ip:timestamp and setting the flag to 0x03, meaning that no other
+ * hosts along the way could add their timestamp.
+ *
+ * by defining _TRACEROUTE_MODE, we make the option large enough to contain
+ * the maximum number of ip:ts (4) but we don't initialize it with our own.
+ * the first 4 hosts along the way will add their ip:ts and the rest will
+ * increment the overflow field. if we have control of both endpoints, we
+ * can determine up to 8 ip-ops knowledgeable hosts along the route.
+ */
 static size_t decode_ts(uint8_t      *dst_buffer,
                         size_t       len_left,
                         uint8_t      **usr_ops,
@@ -96,6 +111,8 @@ static size_t decode_ts(uint8_t      *dst_buffer,
     RET(!iph,     0, "iph is NULL");
     RET(!ops_sec, 0, "ops_sec is NULL");
 
+    /* normal mode */
+#ifndef _TRACEROUTE_MODE
     RET(len_left < 12, 0, "Not enough sapace for option");
 
     /* postponing processing */
@@ -120,6 +137,27 @@ static size_t decode_ts(uint8_t      *dst_buffer,
     *(uint32_t *)(dst_buffer + 8) = htonl(msec);    /* timestamp        */
 
     return 12;
+
+    /* tracer mode */
+#else
+    RET(len_left < 36, 0, "Not enough space for option");
+
+    /* postponing processing */
+    if (!dst_buffer) {
+        (*usr_ops)++;
+        return 36;
+    }
+   
+    /* skip the timestamp; allow hosts to add only ip:ts, not just ts */ 
+    dst_buffer[0] = ((*usr_ops)++)[0];              /* type             */
+    dst_buffer[1] = 36;                             /* length           */
+    dst_buffer[2] = 5 ;                             /* pointer          */
+    dst_buffer[3] = 0x03;                           /* overflow & flags */
+
+    memset(dst_buffer + 4, 0, 32);
+
+    return 32;
+#endif
 }
 
 /* this function implements two different options:
