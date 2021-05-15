@@ -23,7 +23,8 @@ uint16_t csum_16b1c(uint64_t sum, uint16_t *buffer, size_t nbytes)
         sum += *buffer++;
 
     /* account for number of odd bytes */
-    sum += nbytes * (*(uint8_t *) buffer);
+    if (nbytes)
+        sum += *((uint8_t *) buffer);
 
     /* fold partial checksum (account for carry) */
     while (sum >> 16)
