@@ -85,6 +85,36 @@ static size_t decode_nop(uint8_t      *dst_buffer,
     return 1; 
 }
 
+static size_t decode_record_route(uint8_t      *dst_buffer,
+                                  size_t       len_left,
+                                  uint8_t      **usr_ops,
+                                  struct iphdr *iph,
+                                  uint8_t      *ops_sec)
+{
+    /* sanity checks */
+    RET(!usr_ops, 0, "usr_ops is NULL");
+    RET(!iph,     0, "iph is NULL");
+    RET(!ops_sec, 0, "ops_sec is NULL");
+
+    /* normal mode */
+    RET(len_left < 39, 0, "Not enough space for option");
+    
+    /* postponing processing */
+    if (!dst_buffer) {
+        (*usr_ops)++;
+        return 39;
+    }
+
+    /* allocate as much space as possible for routing data (9 hops) */
+    dst_buffer[0] = ((*usr_ops)++)[0];      /* type    */
+    dst_buffer[1] = 39;                     /* length  */
+    dst_buffer[2] = 4;                      /* pointer */
+
+    memset(dst_buffer + 3, 0, 36);
+
+    return 39;
+}
+
 /* the initial way this was supposed to work was by adding the generating
  * host's ip:timestamp and setting the flag to 0x03, meaning that no other
  * hosts along the way could add their timestamp.
@@ -148,15 +178,15 @@ static size_t decode_ts(uint8_t      *dst_buffer,
         return 36;
     }
    
-    /* skip the timestamp; allow hosts to add only ip:ts, not just ts */ 
+    /* skip the timestamp; allow hosts to add only ip:ts, not just ts */
     dst_buffer[0] = ((*usr_ops)++)[0];              /* type             */
     dst_buffer[1] = 36;                             /* length           */
     dst_buffer[2] = 5 ;                             /* pointer          */
-    dst_buffer[3] = 0x03;                           /* overflow & flags */
+    dst_buffer[3] = 0x01;                           /* overflow & flags */
 
     memset(dst_buffer + 4, 0, 32);
 
-    return 32;
+    return 36;
 #endif
 }
 
@@ -234,11 +264,12 @@ size_t (*ip_decoders[0x7f])(uint8_t *, size_t, uint8_t **,
                             struct iphdr *,  uint8_t *) = {
     [0x00 ... 0x7e] = decode_dummy,
 
-    [0x00] = decode_eool,       /* End Of Options List */
-    [0x01] = decode_nop,        /* No OPtion           */
-    [0x44] = decode_ts,         /* TimeStamp           */
-    [0x5d] = decode_unknown,    /* Unasigned Option    */
-    [0x5e] = decode_unknown,    /* Experimental Option */
+    [0x00] = decode_eool,           /* End Of Options List */
+    [0x01] = decode_nop,            /* No OPtion           */
+    [0x07] = decode_record_route,   /* Record Route        */
+    [0x44] = decode_ts,             /* TimeStamp           */
+    [0x5d] = decode_unknown,        /* Unasigned Option    */
+    [0x5e] = decode_unknown,        /* Experimental Option */
 };
 
 /* option processing priority                        *
@@ -248,10 +279,11 @@ size_t (*ip_decoders[0x7f])(uint8_t *, size_t, uint8_t **,
 uint64_t ip_ops_prio[0x7f] = {
     [0x00 ... 0x7e] = 0,
 
-    [0x00] = 0,                 /* End Of Options List */
-    [0x01] = 0,                 /* No OPtion           */
-    [0x44] = 0,                 /* TimeStamp           */
-    [0x5d] = 0,                 /* Unasigned Option    */
-    [0x5e] = 0,                 /* Experimental Option */
+    [0x00] = 0,                     /* End Of Options List */
+    [0x01] = 0,                     /* No OPtion           */
+    [0x07] = 0,                     /* Record Route        */
+    [0x44] = 0,                     /* TimeStamp           */
+    [0x5d] = 0,                     /* Unasigned Option    */
+    [0x5e] = 0,                     /* Experimental Option */
 };
 
