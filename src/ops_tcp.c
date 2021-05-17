@@ -81,6 +81,35 @@ static size_t decode_nop(uint8_t        *dst_buffer,
     return 1;
 }
 
+/* obsoleted in RFC6247                                                *
+ * this function implements both echo (kind=6) and echo reply (kind=7) */
+static size_t decode_echo_reply(uint8_t       *dst_buffer,
+                                size_t        len_left,
+                                uint8_t       **usr_ops,
+                                struct iphdr  *iph,
+                                uint8_t       *ops_sec)
+{
+    /* sanity checks */
+    RET(!usr_ops, 0, "usr_ops is NULL");
+    RET(!iph,     0, "iph is NULL");
+    RET(!ops_sec, 0, "ops_sec is NULL");
+
+    RET(len_left < 6, 0, "Not enough space for option");
+
+    /* postponing processing */
+    if (!dst_buffer) {
+        (*usr_ops)++;
+        return 6;
+    }
+
+    /* echoed value should be timestamp; place dummy value */
+    dst_buffer[0] = ((*usr_ops)++)[0];                  /* kind         */
+    dst_buffer[1] = 6;                                  /* length       */
+    *(uint32_t *) &dst_buffer[2] = htonl(0x01020304);   /* echoed value */
+
+    return 6;
+}
+
 static size_t decode_ts(uint8_t         *dst_buffer,
                         size_t          len_left,
                         uint8_t         **usr_ops,
@@ -250,7 +279,9 @@ size_t (*tcp_decoders[0xff])(uint8_t *, size_t, uint8_t **,
 
     [0x00] = decode_eool,           /* End Of Options List */
     [0x01] = decode_nop,            /* No OPtion           */
-    [0x08] = decode_ts,             /* TimeStamp           */
+    [0x06] = decode_echo_reply,     /* Echo                */
+    [0x07] = decode_echo_reply,     /* Echo Reply          */
+    [0x08] = decode_ts,             /* Timestamp           */
     [0x47] = decode_reserved,       /* Reserved Option     */
     [0xfe] = decode_experimental,   /* Experimental Option */
 };
@@ -264,7 +295,9 @@ uint64_t tcp_ops_prio[0xff] = {
 
     [0x00] = 0,                     /* End Of Options List */
     [0x01] = 0,                     /* No OPtion           */
-    [0x08] = 0,                     /* TimeStamp           */
+    [0x06] = 0,                     /* Echo                */
+    [0x07] = 0,                     /* Echo Reply          */
+    [0x08] = 0,                     /* Timestamp           */
     [0x47] = 0,                     /* Reserved Option     */
     [0xfe] = 0,                     /* Experimental Option */
 };
