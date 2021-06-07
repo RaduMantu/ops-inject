@@ -142,12 +142,16 @@ static size_t decode_ts(uint8_t         *dst_buffer,
     /* get tcp header */
     tcph = (struct tcphdr *)(((uint8_t *) iph) + iph->ihl * 4);
 
+    /* for testing: do not add timestamp outside SYN (ACK) */
+    RET(!tcph->syn, 0, "TCP SYN not set");
+
     /* TSecr = 0         if ACK=0 ; TSval is generated ts *
-     * TSval = TSecr + 1 if ACK=1 ; TSecr is generated ts */
-    dst_buffer[0] = ((*usr_ops)++)[0];  /* kind   */
-    dst_buffer[1] = 10;                 /* length */
+     * TSval = TSecr + x if ACK=1 ; TSecr is generated ts */
     *(uint32_t *)(dst_buffer + 2) = htonl((uint32_t) tv.tv_sec + tcph->ack * 100);
     *(uint32_t *)(dst_buffer + 6) = htonl((uint32_t) tv.tv_sec * tcph->ack);
+
+    *(uint32_t *)(dst_buffer + 2) = htonl(10000 + tcph->ack * 100);
+    *(uint32_t *)(dst_buffer + 6) = htonl(10000 * tcph->ack);
 
     return 10;
 }
@@ -279,8 +283,10 @@ size_t (*tcp_decoders[0xff])(uint8_t *, size_t, uint8_t **,
 
     [0x00] = decode_eool,           /* End Of Options List */
     [0x01] = decode_nop,            /* No OPtion           */
-    [0x06] = decode_echo_reply,     /* Echo                */
-    [0x07] = decode_echo_reply,     /* Echo Reply          */
+    //[0x06] = decode_echo_reply,     /* Echo                */
+    //[0x07] = decode_echo_reply,     /* Echo Reply          */
+    [0x06] = decode_reserved,
+    [0x07] = decode_reserved,
     [0x08] = decode_ts,             /* Timestamp           */
     [0x47] = decode_reserved,       /* Reserved Option     */
     [0xfe] = decode_experimental,   /* Experimental Option */
