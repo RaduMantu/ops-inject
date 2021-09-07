@@ -1,5 +1,3 @@
-.PHONY: dirs
-
 # important directories
 SRC		 = src
 BIN		 = bin
@@ -11,30 +9,34 @@ CXX      = g++
 CXXFLAGS = -std=c++17
 CC       = gcc
 CFLAGS   =
-LDFLAGS  = -lnetfilter_queue
+LDFLAGS  = $(shell pkg-config --libs \
+		   		libnetfilter_queue)
 
 # identify sources and create object file targets
 SOURCES_CPP = $(wildcard $(SRC)/*.cpp)
 SOURCES_C   = $(wildcard $(SRC)/*.c)
-OBJECTS     = $(patsubst $(SRC)/%.cpp, $(OBJ)/%.o, $(SOURCES_CPP))
-OBJECTS    += $(patsubst $(SRC)/%.c,   $(OBJ)/%.o, $(SOURCES_C))
+OBJECTS     = $(patsubst $(SRC)/%.cpp, $(OBJ)/%.o, $(SOURCES_CPP)) \
+			  $(patsubst $(SRC)/%.c,   $(OBJ)/%.o, $(SOURCES_C))
 
-# top level rule
-build: dirs $(BIN)/ops-inject
+# directive to prevent (attempted) itermediary file/directory deletion
+.PRECIOUS: $(BIN)/ $(OBJ)/
 
-# non-persistent folder creation rule
-dirs:
-	@mkdir -p $(BIN) $(OBJ)
+# top level rule (specifies final binary)
+build: $(BIN)/ops-inject
+
+# non-persistent directory creation rule
+%/:
+	@mkdir -p $@
 
 # final binary generation rule
-$(BIN)/ops-inject: $(OBJECTS)
+$(BIN)/ops-inject: $(OBJECTS) | $(BIN)/
 	$(CXX) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 # object generation rule
-$(OBJ)/%.o: $(SRC)/%.cpp
+$(OBJ)/%.o: $(SRC)/%.cpp | $(OBJ)/
 	$(CXX) -c -I $(INCLUDE) $(CXXFLAGS) -o $@ $<
 
-$(OBJ)/%.o: $(SRC)/%.c
+$(OBJ)/%.o: $(SRC)/%.c | $(OBJ)/
 	$(CC) -c -I $(INCLUDE) $(CFLAGS) -o $@ $<
 
 # clean rule
