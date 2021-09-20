@@ -29,6 +29,10 @@
 #include "reassemblers.h"   /* packet reassemblers       */
 #include "cli_args.h"
 
+/* argp API global variables */
+const char *argp_program_version     = "version 1.0";
+const char *argp_program_bug_address = "<andru.mantu@gmail.com>";
+
 /* command line arguments */
 static struct argp_option options[] = {
     { "proto",     'p', "{ip|tcp|udp}", 0,
@@ -49,7 +53,11 @@ static error_t parse_opt(int, char *, struct argp_state *);
 static char args_doc[] = "FILE";
 
 /* program documentation */
-static char doc[] = "ops-inject -- injects user defined ops into specific headers";
+static char doc[] = "ops-inject -- injects user defined ops into specific headers"
+    "\vExample usage:\n"
+    "\t# iptables -I OUTPUT -p icmp -j NFQUEUE --queue-num 0 --queue-bypass\n"
+    "\t# ./bin/ops-inject -p ip -q 0 -w <(printf '\\x07')\n"
+    "\t$ ping $(dig +short digitalocean.com | head -n 1)";
 
 /* declaration of relevant structures */
 struct argp      argp = { options, parse_opt, args_doc, doc };
