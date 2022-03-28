@@ -1,0 +1,16 @@
+These are a few analysis scripts:
+    - analyze_icmp-rr.sh      : shows IP Record Route info
+    - analyze_icmp-ts.sh      : shows IP Timestamp info
+    - analyze_reachability.sh : shows any-to-any contacts
+
+The samples/ directory contains a few pcap files, to check that the scripts
+above work. Also, there is an instances.txt file that needs to be provided to
+each script. It contains the provider, region and IP of each host involved in
+the experiment. The two directories containing the pcap files also have an
+icmp.log. That is the output of the experiment script (note that it contains
+ANSI escape codes).
+
+The extra/ directory contains some of the scripts used to generate (part of)
+the tables / plot in the paper. These may not be that interesting but I've
+included them anyway.
+

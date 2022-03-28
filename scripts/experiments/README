@@ -1,0 +1,24 @@
+Summary of experiments:
+    curl:   fetches sites from a user-provided list, from each vm
+    http:   runs SimpleHTTPServer (can specify port) on each vm and all other
+            fetch the content using curl
+    nc:     runs two udp and tcp netcat servers (can specify port) on each vm
+            and all other send their public ip (preconfigured / reverse dns)
+            on said ports
+    ntp:    runs a ntp server (port 123) on each vm and all other send a query
+            without updateing their own times
+    ping:   each vm sends icmp echo requests with hex encoded public ip
+            (preconfigured / reverse dns) as payload to all other vms
+    quic:   each vm runs a user-provided precompiled quic client to contact
+            a series of public servers (also user-provided). not many options
+            aside from the chromium project; compilation on each machine would
+            be too costly; encountered some problems running quic server
+    tfo:    runs yuryu's tcp-fast-open server on each vm (port 32345) and all
+            other connect with the associated client
+
+Each script will start tcpdump instances for relevant traffic on each vm. One
+for inbound, one for outbound. the pcap files are copied to localhost after the
+experiments conclude. Aside from the curl experiment that also generates a log
+file containing the ultimate response status for each provided site, the success
+of each experiment must be determined from these pcaps.
+

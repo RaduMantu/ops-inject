@@ -1,0 +1,13 @@
+This directory contains a number of scripts:
+    - start_*.sh     : initailization scripts for cloud VMs
+                       you should have an ~/.ssh/id_rsa configured
+                       they will replicate your current ${USER} on remote
+    - terminate_*.sh : termination scripts matching all start_*.sh
+    - test_ssh.sh    : checks that instances are responding to commands via SSH
+                       not really necessary to run this
+    - inject_ops.sh  : configures the ops-inject tool on remote hosts
+                       can also configure iptables rules, start the process with
+                       user-defined ops, or terminate said process
+    - vpn_manager.sh : was used to set up openvpn with vpngate configs on remote
+                       not used in final experiments due to time constraints
+

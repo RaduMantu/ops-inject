@@ -1,0 +1,13 @@
+This directory is structured thusly:
+    management/  : VM and ops-inject setup scripts, among other things
+    experiments/ : individual experiment scripts; each one will
+                        - install dependencies
+                        - generate traffic from each instance to all other
+                        - copy the packet captures locally
+    analysis/    : a few analysis scripts and sample pcaps to test them
+                   some not-so-useful extra scripts (see the README there)
+    utils/       : imported by all scripts, they offer a unified manner to
+                   dynamically generate a list of instance IPs
+                   they also provide wrapper functions for ssh, scp and a
+                   pretty logging method via TELL...DIE (see scripts)
+
