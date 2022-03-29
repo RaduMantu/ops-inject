@@ -24,6 +24,10 @@ OBJECTS     = $(patsubst $(SRC)/%.cpp, $(OBJ)/%.o, $(SOURCES_CPP)) \
 # top level rule (specifies final binary)
 build: $(BIN)/ops-inject
 
+# generate compile_Commands.json for clangd (or other language servers)
+bear:
+	bear -- $(MAKE) build
+
 # non-persistent directory creation rule
 %/:
 	@mkdir -p $@
