@@ -20,9 +20,9 @@
 #include <sys/time.h>       /* gettimeofday    */
 #include <arpa/inet.h>      /* htonl           */
 
-#include "csum.h"           /* csum_16b1c      */
-#include "util.h"           /* DIE, ABORT, RET */
+#include "csum.h"
 #include "ops_udp.h"
+#include "util.h"
 
 /* decode_eool - EOOL decoding callback
  *  @dst_buffer : buffer where ops are constructed before they are injected

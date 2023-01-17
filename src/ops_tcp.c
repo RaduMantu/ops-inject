@@ -20,8 +20,8 @@
 #include <sys/time.h>       /* gettimeofday    */
 #include <arpa/inet.h>      /* htonl           */
 
-#include "util.h"           /* DIE, ABORT, RET */
 #include "ops_tcp.h"
+#include "util.h"
 
 
 /* decode_eool - EOOL decoding callback

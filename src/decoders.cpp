@@ -35,9 +35,9 @@ extern "C" {
 #include "ops_udp.h"        /* individual udp options decoders */
 }
 
-#include "cli_args.h"       /* args (after processing) */
-#include "util.h"           /* DIE, ABORT, RET         */
+#include "cli_args.h"
 #include "decoders.h"
+#include "util.h"
 
 using namespace std;
 
@@ -74,7 +74,7 @@ size_t decode_ip_ops(struct iphdr *iph, void **ops_buffer, uint8_t ow)
     /* priority queue holding delayed option processing requests */
     auto compare = [](pp_data lhs, pp_data rhs)
     {
-        return ip_ops_prio[*get<2>(lhs) & 0x7f] > 
+        return ip_ops_prio[*get<2>(lhs) & 0x7f] >
                ip_ops_prio[*get<2>(rhs) & 0x7f];
     };
     priority_queue<pp_data, vector<pp_data>, decltype(compare)> pq(compare);
@@ -126,7 +126,7 @@ size_t decode_ip_ops(struct iphdr *iph, void **ops_buffer, uint8_t ow)
     /* calculate padded length (must be multiple of 4 for ihl) */
     padded_len  = len & ~0x03L;
     padded_len += !!(len & 0x03) * 4;
-    
+
     /* set padding (if needed) */
     memset(ops + len, 0, padded_len - len);
 
@@ -157,7 +157,7 @@ size_t decode_tcp_ops(struct iphdr *iph, void **ops_buffer, uint8_t ow)
     size_t          len        = 0;     /* length of options w/o padding */
     size_t          ans;
     uint8_t         *aux;
-    struct tcphdr*  tcph;   
+    struct tcphdr*  tcph;
 
     /* priority queue holding delayed option processing requests */
     auto compare = [](pp_data lhs, pp_data rhs)
@@ -171,7 +171,7 @@ size_t decode_tcp_ops(struct iphdr *iph, void **ops_buffer, uint8_t ow)
     RET(!iph,         0, "iph is NULL");
     RET(!ops_buffer,  0, "ops_buffer is NULL");
 
-    /* check protocol */ 
+    /* check protocol */
     RET(iph->version  != 4, 0, "Layer 3 protocol mismatch");
     RET(iph->protocol != 6, 0, "Layer 4 protocol mismatch");
 
@@ -214,7 +214,7 @@ size_t decode_tcp_ops(struct iphdr *iph, void **ops_buffer, uint8_t ow)
                 &delayed_op, iph, ops);
         RET(!ans, 0, "Unable to decode byte %lu of user ops",
             (unsigned long)(delayed_op - args.ops));
-    } 
+    }
 
     /* calculate padded length (must be multiple of 4 for doff) */
     padded_len  = len & ~0x03L;
@@ -232,7 +232,7 @@ size_t decode_tcp_ops(struct iphdr *iph, void **ops_buffer, uint8_t ow)
  *  @iph        : start of ip header
  *  @ops_buffer : address of a pointer used to indicate generated ops buffer
  *                location to the caller; buffer becomes invalid after a
- *                subsequent call to this function 
+ *                subsequent call to this function
  *  @ow         : 0 if not overwriting existing options
  *
  *  @return : len of ops section buffer (is multiple of 4 bytes) or 0 on failure
@@ -254,7 +254,7 @@ size_t decode_udp_ops(struct iphdr *iph, void **ops_buffer, uint8_t ow)
     /* priority queue holding delayed option processing requests */
     auto compare = [](pp_data lhs, pp_data rhs)
     {
-        return udp_ops_prio[*get<2>(lhs)] > 
+        return udp_ops_prio[*get<2>(lhs)] >
                udp_ops_prio[*get<2>(rhs)];
     };
     priority_queue<pp_data, vector<pp_data>, decltype(compare)> pq(compare);
@@ -269,7 +269,7 @@ size_t decode_udp_ops(struct iphdr *iph, void **ops_buffer, uint8_t ow)
 
     /* extract udp header */
     udph = (struct udphdr *)(((uint8_t *) iph) + iph->ihl * 4);
- 
+
     /* calculate remaining length for options */
     len_left = sizeof(ops) - (ow ? iph->ihl * 4 + ntohs(udph->len) :
         ntohs(iph->tot_len));

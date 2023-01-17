@@ -24,10 +24,10 @@
 #include <fcntl.h>          /* open                      */
 #include <unistd.h>         /* read, close               */
 
-#include "util.h"           /* DIE, ABORT, RET           */
-#include "decoders.h"       /* protocol options decoders */
-#include "reassemblers.h"   /* packet reassemblers       */
+#include "decoders.h"
+#include "reassemblers.h"
 #include "cli_args.h"
+#include "util.h"
 
 /* argp API global variables */
 const char *argp_program_version     = "version 1.0";
@@ -137,7 +137,7 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state)
             DIE(ans == -1, "Unable to close ops file (%d)", errno);
 
             args.ops_len = rb;
-            
+
             break;
         /* unknown argument */
         default:

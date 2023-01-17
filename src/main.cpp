@@ -33,13 +33,16 @@
 #include <linux/netfilter.h>  /* NF_ACCEPT              */
 #include <libnetfilter_queue/libnetfilter_queue.h>
 
-/* prefer writing these in C due to Designated Initializers *
- * makes the usage of callback arrays more pleasant         */
+/* prefer writing these in C due to Designated Initializers      *
+ * makes the usage of callback arrays more pleasant              *
+ *                                                               *
+ * TODO: clang has support for designated initializers in c++    *
+ *       maybe make the switch at some point; dont' care for now */
 extern "C" {
-#include "str_proto.h"        /* string from protocol num */
-#include "csum.h"             /* checksum functions       */
+#include "str_proto.h"
+#include "csum.h"
 }
-#include "cli_args.h"         /* argument parsing         */
+#include "cli_args.h"
 #include "util.h"
 
 /******************************************************************************
@@ -93,7 +96,7 @@ static int32_t annotator(struct nfq_q_handle *qh,
 
     /* show some debug info */
     DEBUG("Received new packet: "
-          "src=%hhu.%hhu.%hhu.%hhu dst=%u.%hhu.%hhu.%hhu proto=\"%s\"",
+          "src=%u.%u.%u.%u dst=%u.%u.%u.%u proto=\"%s\"",
           (iph->saddr >>  0) & 0xff, (iph->saddr >>  8) & 0xff,
           (iph->saddr >> 16) & 0xff, (iph->saddr >> 24) & 0xff,
           (iph->daddr >>  0) & 0xff, (iph->daddr >>  8) & 0xff,
@@ -107,7 +110,7 @@ static int32_t annotator(struct nfq_q_handle *qh,
     ops_len = args.decoder(iph, (void **) &ops_buffer, args.overwrite);
     GOTO(!ops_len, pass_unchanged, "Decoding failed");
 
-    /* reassemble the packet by incorporating the decoded options */ 
+    /* reassemble the packet by incorporating the decoded options */
     ans = args.reasmbl(iph, mod_buffer, ops_buffer, ops_len, args.overwrite);
     GOTO(ans, pass_unchanged, "Reassembly failed");
 
@@ -160,9 +163,9 @@ int32_t main(int argc, char **argv)
 
     /* open nfq handle */
     h = nfq_open();
-    DIE(!h, "Unable to open nfq handle (%s)", strerror(errno)); 
+    DIE(!h, "Unable to open nfq handle (%s)", strerror(errno));
     INFO("Opened nfq handle");
-    
+
     /* bind nfq handle to queue */
     qh = nfq_create_queue(h, args.q_num, annotator, NULL);
     GOTO(ans < 0, cleanup_handle, "Unable to create a queue (%s)",
@@ -187,7 +190,7 @@ int32_t main(int argc, char **argv)
 
     /* read packets into userspace buffer & invoke callback */
     INFO("Starting main loop");
-    while (ans = read(fd, buffer, sizeof(buffer))) {
+    while ((ans = read(fd, buffer, sizeof(buffer)))) {
         GOTO(ans < 0, cleanup_queue, "Error reading from socket (%s)",
             strerror(errno));
 

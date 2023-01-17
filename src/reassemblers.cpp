@@ -25,8 +25,8 @@
 #include <netinet/tcp.h>    /* tcphdr       */
 #include <netinet/udp.h>    /* udphdr       */
 
-#include "util.h"           /* DIE, ABORT, RET */
 #include "reassemblers.h"
+#include "util.h"
 
 /* reassemble_ip - creates a new packet by including generated options
  *  @iph      : ip header
@@ -60,7 +60,7 @@ int reassemble_ip(struct iphdr *iph, uint8_t *mod_buff, uint8_t *ops,
     memcpy(mod_buff, src_buff, 20);
     new_len = 20;
     offset  = 20;
-    
+
     /* copy existing ip options (if any) */
     if (!ow) {
         memcpy(mod_buff + new_len, src_buff + offset, iph->ihl * 4 - 20);
@@ -76,7 +76,7 @@ int reassemble_ip(struct iphdr *iph, uint8_t *mod_buff, uint8_t *ops,
     aux_len = ntohs(iph->tot_len) - iph->ihl * 4;
     memcpy(mod_buff + new_len, src_buff + offset, aux_len);
     new_len += aux_len;
-    
+
     /* set fields for new packet */
     iph = (struct iphdr *) mod_buff;
     iph->tot_len = htons((uint32_t) new_len);
@@ -199,7 +199,7 @@ int reassemble_udp(struct iphdr *iph, uint8_t *mod_buff, uint8_t *ops,
         memcpy(mod_buff + new_len, src_buff + offset, aux_len);
         new_len += aux_len;
     }
-    
+
     /* copy new options */
     memcpy(mod_buff + new_len, ops, ops_len);
     new_len += ops_len;

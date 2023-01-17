@@ -21,8 +21,8 @@
 #include <arpa/inet.h>      /* htonl           */
 #include <string.h>         /* memset          */
 
-#include "util.h"           /* DIE, ABORT, RET */
 #include "ops_ip.h"
+#include "util.h"
 
 
 #define _TRACEROUTE_MODE    /* see decode_ts */
@@ -73,7 +73,7 @@ static size_t decode_eool(uint8_t      *dst_buffer,
     if (!dst_buffer) {
         (*usr_ops)++;
         return 1;
-    } 
+    }
 
     /* actual processing */
     dst_buffer[0] = ((*usr_ops)++)[0];
@@ -101,7 +101,7 @@ static size_t decode_nop(uint8_t      *dst_buffer,
 
     /* actual processing */
     dst_buffer[0] = ((*usr_ops)++)[0];
-    return 1; 
+    return 1;
 }
 
 static size_t decode_record_route(uint8_t      *dst_buffer,
@@ -117,7 +117,7 @@ static size_t decode_record_route(uint8_t      *dst_buffer,
 
     /* normal mode */
     RET(len_left < 39, 0, "Not enough space for option");
-    
+
     /* postponing processing */
     if (!dst_buffer) {
         (*usr_ops)++;
@@ -196,7 +196,7 @@ static size_t decode_ts(uint8_t      *dst_buffer,
         (*usr_ops)++;
         return 36;
     }
-   
+
     /* skip the timestamp; allow hosts to add only ip:ts, not just ts */
     dst_buffer[0] = ((*usr_ops)++)[0];              /* type             */
     dst_buffer[1] = 36;                             /* length           */
@@ -206,7 +206,7 @@ static size_t decode_ts(uint8_t      *dst_buffer,
     memset(dst_buffer + 4, 0, 32);
 
     return 36;
-#endif
+#endif /* _TRACEROUTE_MODE */
 }
 
 /* this function implements two different options:

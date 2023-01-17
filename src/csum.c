@@ -22,8 +22,8 @@
 #include <netinet/tcp.h>    /* tcphdr           */
 #include <netinet/udp.h>    /* udphdr           */
 
-#include "util.h"           /* DIE, ABORT, RET  */
 #include "csum.h"
+#include "util.h"
 
 /* csum_16b1c - 16-bit 1's complement sum
  *  @sum    : initial partial sum (e.g.: tcp/udp pseudo headers)
@@ -85,7 +85,7 @@ static int tcp_csum(struct iphdr *iph)
 {
     uint64_t      sum = 0;   /* accumulator must hold csum overflow as well */
     uint16_t      tcp_len;   /* length of tcp header & paylaod (can be odd) */
-    struct tcphdr *tcph; 
+    struct tcphdr *tcph;
 
     /* sanity check */
     RET(!iph, 1, "iph is NULL");
@@ -120,7 +120,7 @@ static int udp_csum(struct iphdr *iph)
 {
     uint64_t      sum = 0;   /* accumulator must hold csum overflow as well */
     uint16_t      udp_len;   /* length of udp header & payload (can be odd) */
-    struct udphdr *udph; 
+    struct udphdr *udph;
 
     /* sanity check */
     RET(!iph, 1, "iph is NULL");
@@ -178,7 +178,7 @@ static int dummy_csum(struct iphdr *iph)
 /* protocol specific checksum calculators array */
 int (*layer4_csum[0x100])(struct iphdr *) = {
     [0x00 ... 0xff] = dummy_csum,
-    
+
     [0x06] = tcp_csum,  /* Transmission Control Protocol */
     [0x11] = udp_csum,  /* User Datagram Protocol        */
 
