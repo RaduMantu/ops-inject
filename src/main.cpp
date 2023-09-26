@@ -168,7 +168,7 @@ int32_t main(int argc, char **argv)
 
     /* bind nfq handle to queue */
     qh = nfq_create_queue(h, args.q_num, annotator, NULL);
-    GOTO(ans < 0, cleanup_handle, "Unable to create a queue (%s)",
+    GOTO(!qh, cleanup_handle, "Unable to create a queue (%s)",
         strerror(errno));
     INFO("Bound nfq handle to queue");
 
